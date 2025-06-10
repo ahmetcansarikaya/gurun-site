@@ -7,12 +7,15 @@ if (!process.env.MONGODB_URI) {
 
 const uri = process.env.MONGODB_URI;
 const options = {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
   ssl: true,
   tls: true,
-  tlsAllowInvalidCertificates: true,
-  tlsAllowInvalidHostnames: true,
+  tlsInsecure: true,
   retryWrites: true,
-  w: 'majority'
+  w: 'majority',
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
 };
 
 const client = new MongoClient(uri, options);
