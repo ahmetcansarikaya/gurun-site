@@ -1,8 +1,41 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaArrowRight } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 
 export default function Home() {
+  const [selectedCategory, setSelectedCategory] = useState('fabrika');
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchImages();
+  }, [selectedCategory]);
+
+  const fetchImages = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`/api/gallery?category=${selectedCategory}&limit=6`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch images');
+      }
+
+      const data = await response.json();
+      setImages(data.images);
+    } catch (err) {
+      console.error('Error fetching images:', err);
+      setError('Görseller yüklenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main>
       {/* Hero Section */}
@@ -154,6 +187,85 @@ export default function Home() {
           <Link href="/iletisim" className="button-primary">
             İletişim Sayfası
           </Link>
+        </div>
+      </section>
+
+      {/* Galeri Bölümü */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Galeri</h2>
+          
+          {/* Kategori Filtreleri */}
+          <div className="flex justify-center gap-4 mb-8">
+            <button
+              onClick={() => setSelectedCategory('fabrika')}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                selectedCategory === 'fabrika'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Fabrika
+            </button>
+            <button
+              onClick={() => setSelectedCategory('ekip')}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                selectedCategory === 'ekip'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Ekip
+            </button>
+          </div>
+
+          {/* Hata Mesajı */}
+          {error && (
+            <div className="text-center text-red-600 mb-8">
+              {error}
+            </div>
+          )}
+
+          {/* Yükleme Göstergesi */}
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <>
+              {/* Görsel Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {images.map((image) => (
+                  <motion.div
+                    key={image._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative group overflow-hidden rounded-lg shadow-lg"
+                  >
+                    <div className="aspect-w-16 aspect-h-9">
+                      <Image
+                        src={image.image}
+                        alt="Gallery image"
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-110"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Daha Fazla Butonu */}
+              <div className="text-center mt-8">
+                <Link
+                  href="/galeri"
+                  className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Tüm Görselleri Gör
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </main>

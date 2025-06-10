@@ -1,70 +1,74 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export default function MessagesPage() {
+export default function AdminMessages() {
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedMessage, setSelectedMessage] = useState(null);
-  const [filter, setFilter] = useState('all'); // all, new, read, archived
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchMessages = async (pageNum = 1) => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(`/api/messages?page=${pageNum}&limit=10`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+
+      const data = await response.json();
+      
+      if (pageNum === 1) {
+        setMessages(data.messages);
+      } else {
+        setMessages(prev => [...prev, ...data.messages]);
+      }
+      
+      setHasMore(data.pagination.page < data.pagination.totalPages);
+    } catch (err) {
+      console.error('Error fetching messages:', err);
+      setError('Mesajlar yüklenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchMessages();
   }, []);
 
-  const fetchMessages = async () => {
-    try {
-      const response = await fetch('/api/messages');
-      const data = await response.json();
-      setMessages(data);
-    } catch (error) {
-      console.error('Mesajlar yüklenirken hata:', error);
-    }
-  };
+  const handleDelete = async (id) => {
+    if (!confirm('Bu mesajı silmek istediğinizden emin misiniz?')) return;
 
-  const handleStatusChange = async (id, newStatus) => {
     try {
-      const response = await fetch('/api/messages', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus })
+      const response = await fetch(`/api/messages?id=${id}`, {
+        method: 'DELETE',
       });
 
-      if (response.ok) {
-        fetchMessages();
-        if (selectedMessage?.id === id) {
-          setSelectedMessage(prev => ({ ...prev, status: newStatus }));
-        }
+      if (!response.ok) {
+        throw new Error('Failed to delete message');
       }
-    } catch (error) {
-      console.error('Durum güncellenirken hata:', error);
+
+      setMessages(messages.filter(msg => msg._id !== id));
+      if (selectedMessage?._id === id) {
+        setSelectedMessage(null);
+      }
+    } catch (err) {
+      console.error('Error deleting message:', err);
+      setError('Mesaj silinirken bir hata oluştu');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Bu mesajı silmek istediğinizden emin misiniz?')) {
-      try {
-        const response = await fetch('/api/messages', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
-        });
-
-        if (response.ok) {
-          fetchMessages();
-          if (selectedMessage?.id === id) {
-            setSelectedMessage(null);
-          }
-        }
-      } catch (error) {
-        console.error('Mesaj silinirken hata:', error);
-      }
-    }
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchMessages(nextPage);
   };
-
-  const filteredMessages = messages.filter(message => {
-    if (filter === 'all') return true;
-    return message.status === filter;
-  });
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -77,140 +81,130 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Mesajlar</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded ${
-              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'
-            }`}
-          >
-            Tümü
-          </button>
-          <button
-            onClick={() => setFilter('new')}
-            className={`px-4 py-2 rounded ${
-              filter === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-200'
-            }`}
-          >
-            Yeni
-          </button>
-          <button
-            onClick={() => setFilter('read')}
-            className={`px-4 py-2 rounded ${
-              filter === 'read' ? 'bg-blue-600 text-white' : 'bg-gray-200'
-            }`}
-          >
-            Okundu
-          </button>
-          <button
-            onClick={() => setFilter('archived')}
-            className={`px-4 py-2 rounded ${
-              filter === 'archived' ? 'bg-blue-600 text-white' : 'bg-gray-200'
-            }`}
-          >
-            Arşiv
-          </button>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">İletişim Mesajları</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Mesaj Listesi */}
-        <div className="md:col-span-1 space-y-4">
-          {filteredMessages.map((message) => (
-            <div
-              key={message.id}
-              onClick={() => setSelectedMessage(message)}
-              className={`p-4 rounded-lg cursor-pointer ${
-                selectedMessage?.id === message.id
-                  ? 'bg-blue-100 border-blue-500'
-                  : 'bg-white hover:bg-gray-50'
-              } border ${
-                message.status === 'new'
-                  ? 'border-blue-500'
-                  : message.status === 'read'
-                  ? 'border-gray-300'
-                  : 'border-gray-200'
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold">{message.subject}</h3>
-                  <p className="text-sm text-gray-600">{message.name}</p>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full ${
-                    message.status === 'new'
-                      ? 'bg-blue-100 text-blue-800'
-                      : message.status === 'read'
-                      ? 'bg-gray-100 text-gray-800'
-                      : 'bg-gray-50 text-gray-600'
-                  }`}
-                >
-                  {message.status === 'new'
-                    ? 'Yeni'
-                    : message.status === 'read'
-                    ? 'Okundu'
-                    : 'Arşiv'}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-gray-600 line-clamp-2">
-                {message.message}
-              </p>
-              <p className="mt-2 text-xs text-gray-500">
-                {formatDate(message.created_at)}
-              </p>
-            </div>
-          ))}
+      {/* Hata Mesajı */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
         </div>
+      )}
 
-        {/* Mesaj Detayı */}
-        <div className="md:col-span-2">
-          {selectedMessage ? (
-            <div className="bg-white rounded-lg p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-xl font-bold">{selectedMessage.subject}</h2>
-                  <p className="text-gray-600">{selectedMessage.name}</p>
-                  <p className="text-gray-600">{selectedMessage.email}</p>
-                  {selectedMessage.phone && (
-                    <p className="text-gray-600">{selectedMessage.phone}</p>
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  <select
-                    value={selectedMessage.status}
-                    onChange={(e) => handleStatusChange(selectedMessage.id, e.target.value)}
-                    className="border rounded px-2 py-1"
-                  >
-                    <option value="new">Yeni</option>
-                    <option value="read">Okundu</option>
-                    <option value="archived">Arşiv</option>
-                  </select>
+      {/* Yükleme Göstergesi */}
+      {loading && messages.length === 0 ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Mesaj Listesi */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="divide-y divide-gray-200">
+                <AnimatePresence>
+                  {messages.map((message) => (
+                    <motion.div
+                      key={message._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                        selectedMessage?._id === message._id ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => setSelectedMessage(message)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {message.name}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {message.email}
+                          </p>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {formatDate(message.createdAt)}
+                        </div>
+                      </div>
+                      <p className="mt-2 text-gray-600 line-clamp-2">
+                        {message.message}
+                      </p>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* Daha Fazla Yükle Butonu */}
+              {hasMore && !loading && (
+                <div className="p-4 text-center border-t">
                   <button
-                    onClick={() => handleDelete(selectedMessage.id)}
-                    className="text-red-600 hover:text-red-800"
+                    onClick={loadMore}
+                    className="bg-gray-100 hover:bg-gray-200 px-6 py-2 rounded-lg transition-colors"
                   >
-                    Sil
+                    Daha Fazla Yükle
                   </button>
                 </div>
-              </div>
-              <div className="prose max-w-none">
-                <p className="whitespace-pre-wrap">{selectedMessage.message}</p>
-              </div>
-              <p className="mt-4 text-sm text-gray-500">
-                {formatDate(selectedMessage.created_at)}
-              </p>
+              )}
+
+              {/* Yükleme Göstergesi */}
+              {loading && messages.length > 0 && (
+                <div className="p-4 text-center border-t">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="bg-white rounded-lg p-6 text-center text-gray-500">
-              Mesaj seçilmedi
-            </div>
-          )}
+          </div>
+
+          {/* Mesaj Detayı */}
+          <div className="lg:col-span-1">
+            {selectedMessage ? (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {selectedMessage.name}
+                    </h2>
+                    <p className="text-gray-500">{selectedMessage.email}</p>
+                  </div>
+                  <button
+                    onClick={() => handleDelete(selectedMessage._id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="text-sm text-gray-500 mb-4">
+                  {formatDate(selectedMessage.createdAt)}
+                </div>
+                <div className="prose max-w-none">
+                  <p className="text-gray-600 whitespace-pre-wrap">
+                    {selectedMessage.message}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-lg p-6 text-center text-gray-500">
+                Mesaj seçilmedi
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 } 
