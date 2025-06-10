@@ -23,20 +23,27 @@ export async function GET() {
 // POST new gallery image
 export async function POST(request) {
   try {
-    const { title, category, image, date } = await request.json();
-    
+    const body = await request.json();
+    const { title, category, image } = body;
+
+    if (!title || !category || !image) {
+      return NextResponse.json(
+        { error: 'Title, category and image are required' },
+        { status: 400 }
+      );
+    }
+
     await client.connect();
     const database = client.db('gurun-site');
     const collection = database.collection('gallery');
-    
+
     const result = await collection.insertOne({
       title,
       category,
       image,
-      date,
       createdAt: new Date()
     });
-    
+
     return NextResponse.json({ id: result.insertedId });
   } catch (error) {
     console.error('Database error:', error);
@@ -49,14 +56,29 @@ export async function POST(request) {
 // DELETE gallery image
 export async function DELETE(request) {
   try {
-    const { id } = await request.json();
-    
+    const body = await request.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Image ID is required' },
+        { status: 400 }
+      );
+    }
+
     await client.connect();
     const database = client.db('gurun-site');
     const collection = database.collection('gallery');
-    
-    await collection.deleteOne({ _id: id });
-    
+
+    const result = await collection.deleteOne({ _id: id });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { error: 'Image not found' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Database error:', error);
