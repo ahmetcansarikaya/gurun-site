@@ -19,12 +19,35 @@ async function connectToDatabase() {
 }
 
 // GET all gallery images
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 9;
+    const skip = (page - 1) * limit;
+
     const database = await connectToDatabase();
     const collection = database.collection('gallery');
-    const images = await collection.find({}).toArray();
-    return NextResponse.json(images);
+
+    // Get total count for pagination
+    const total = await collection.countDocuments();
+    const hasMore = skip + limit < total;
+
+    // Get paginated images
+    const images = await collection
+      .find({})
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    return NextResponse.json({
+      images,
+      hasMore,
+      total,
+      page,
+      limit
+    });
   } catch (error) {
     console.error('Database error:', error);
     return NextResponse.json(

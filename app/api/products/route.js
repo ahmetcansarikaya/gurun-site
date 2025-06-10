@@ -1,19 +1,58 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
+if (!process.env.MONGODB_URI) {
+  throw new Error('Please add your MongoDB URI to .env.local');
+}
+
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri);
 
-export async function GET() {
+async function connectToDatabase() {
   try {
     await client.connect();
-    const database = client.db('gurun-site');
+    return client.db('gurun-site');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw new Error('Failed to connect to database');
+  }
+}
+
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 9;
+    const skip = (page - 1) * limit;
+
+    const database = await connectToDatabase();
     const collection = database.collection('products');
-    const products = await collection.find({}).toArray();
-    return NextResponse.json(products);
+
+    // Get total count for pagination
+    const total = await collection.countDocuments();
+    const hasMore = skip + limit < total;
+
+    // Get paginated products
+    const products = await collection
+      .find({})
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    return NextResponse.json({
+      products,
+      hasMore,
+      total,
+      page,
+      limit
+    });
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch products' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }
@@ -22,31 +61,33 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, description, category, image } = body;
+    const { name, description, image, category } = body;
 
-    if (!name || !category || !image) {
+    if (!name || !description || !image || !category) {
       return NextResponse.json(
-        { error: 'Name, category and image are required' },
+        { error: 'Name, description, image and category are required' },
         { status: 400 }
       );
     }
 
-    await client.connect();
-    const database = client.db('gurun-site');
+    const database = await connectToDatabase();
     const collection = database.collection('products');
 
     const result = await collection.insertOne({
       name,
       description,
-      category,
       image,
+      category,
       createdAt: new Date()
     });
 
     return NextResponse.json({ id: result.insertedId });
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to add product' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }
@@ -64,8 +105,7 @@ export async function DELETE(request) {
       );
     }
 
-    await client.connect();
-    const database = client.db('gurun-site');
+    const database = await connectToDatabase();
     const collection = database.collection('products');
 
     const result = await collection.deleteOne({ _id: id });
@@ -80,7 +120,10 @@ export async function DELETE(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete product' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }

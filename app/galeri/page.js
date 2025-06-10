@@ -8,20 +8,30 @@ export default function Gallery() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const imagesPerPage = 9;
 
   useEffect(() => {
     fetchImages();
-  }, []);
+  }, [page]);
 
   const fetchImages = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/gallery');
+      const response = await fetch(`/api/gallery?page=${page}&limit=${imagesPerPage}`);
       if (!response.ok) {
         throw new Error('Failed to fetch images');
       }
       const data = await response.json();
-      setImages(data);
+      
+      if (page === 1) {
+        setImages(data.images);
+      } else {
+        setImages(prev => [...prev, ...data.images]);
+      }
+      
+      setHasMore(data.hasMore);
     } catch (error) {
       console.error('Error fetching images:', error);
       setError('Görseller yüklenirken bir hata oluştu.');
@@ -36,13 +46,11 @@ export default function Gallery() {
     ? images
     : images.filter(img => img.category === selectedCategory);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      setPage(prev => prev + 1);
+    }
+  };
 
   if (error) {
     return (
@@ -63,12 +71,16 @@ export default function Gallery() {
         </div>
 
         {/* Category Filter */}
-        <div className="flex justify-center mb-8 space-x-4">
+        <div className="flex justify-center mb-8 space-x-4 overflow-x-auto pb-2">
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors
+              onClick={() => {
+                setSelectedCategory(category);
+                setPage(1);
+                setImages([]);
+              }}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap
                 ${selectedCategory === category
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -91,7 +103,10 @@ export default function Gallery() {
                   src={image.image}
                   alt={image.title}
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="object-cover"
+                  loading="lazy"
+                  quality={75}
                 />
               </div>
               <div className="p-4">
@@ -106,9 +121,29 @@ export default function Gallery() {
           ))}
         </div>
 
-        {filteredImages.length === 0 && (
+        {filteredImages.length === 0 && !loading && (
           <div className="text-center py-12">
             <p className="text-gray-500">Bu kategoride görsel bulunamadı.</p>
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {hasMore && (
+          <div className="text-center mt-8">
+            <button
+              onClick={loadMore}
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Yükleniyor...' : 'Daha Fazla Yükle'}
+            </button>
+          </div>
+        )}
+
+        {/* Loading Spinner */}
+        {loading && (
+          <div className="flex justify-center mt-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         )}
       </div>
