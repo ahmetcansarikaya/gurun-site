@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GalleryPage() {
   const [images, setImages] = useState([]);
@@ -34,12 +34,12 @@ export default function GalleryPage() {
       const data = await response.json();
       
       if (pageNum === 1) {
-        setImages(data.images);
+        setImages(data.images || []);
       } else {
-        setImages(prev => [...prev, ...data.images]);
+        setImages(prev => [...prev, ...(data.images || [])]);
       }
       
-      setHasMore(data.hasMore);
+      setHasMore(data.hasMore || false);
     } catch (err) {
       console.error('Error fetching images:', err);
       setError('Görseller yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
@@ -117,37 +117,40 @@ export default function GalleryPage() {
         </div>
 
         {/* Görsel Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredImages.map((image, index) => (
-            <motion.div
-              key={image._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative group overflow-hidden rounded-lg shadow-lg"
-            >
-              <div className="aspect-w-4 aspect-h-3">
-                <Image
-                  src={image.image}
-                  alt={image.title}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  loading="lazy"
-                  quality={75}
-                />
-              </div>
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity duration-300">
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                  <h3 className="text-lg font-semibold">{image.title}</h3>
-                  <p className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    {image.category}
-                  </p>
+        <AnimatePresence>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredImages.map((image, index) => (
+              <motion.div
+                key={image._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                className="relative group overflow-hidden rounded-lg shadow-lg"
+              >
+                <div className="aspect-w-4 aspect-h-3">
+                  <Image
+                    src={image.image}
+                    alt={image.title || 'Galeri görseli'}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    loading="lazy"
+                    quality={75}
+                  />
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity duration-300">
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                    <h3 className="text-lg font-semibold">{image.title || 'Başlıksız'}</h3>
+                    <p className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      {image.category || 'Kategorisiz'}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </AnimatePresence>
 
         {/* Daha Fazla Yükle Butonu */}
         {hasMore && (
