@@ -6,7 +6,16 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
+const options = {
+  ssl: true,
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true,
+  retryWrites: true,
+  w: 'majority'
+};
+
+const client = new MongoClient(uri, options);
 
 async function connectToDatabase() {
   try {
