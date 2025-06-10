@@ -9,21 +9,23 @@ const uri = process.env.MONGODB_URI;
 const options = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  ssl: true,
-  tls: true,
-  tlsInsecure: true,
-  retryWrites: true,
-  w: 'majority',
+  maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
 };
 
-const client = new MongoClient(uri, options);
+let client;
+let clientPromise;
+
+if (!clientPromise) {
+  client = new MongoClient(uri, options);
+  clientPromise = client.connect();
+}
 
 export async function GET() {
   try {
     console.log('Attempting to connect to MongoDB...');
-    await client.connect();
+    const client = await clientPromise;
     console.log('Successfully connected to MongoDB');
     
     const database = client.db('gurun-site');
@@ -54,7 +56,5 @@ export async function GET() {
       },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 } 

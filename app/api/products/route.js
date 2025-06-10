@@ -9,24 +9,27 @@ const uri = process.env.MONGODB_URI;
 const options = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  ssl: true,
-  tls: true,
-  tlsInsecure: true,
-  retryWrites: true,
-  w: 'majority',
+  maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
 };
 
-const client = new MongoClient(uri, options);
+let client;
+let clientPromise;
+
+if (!clientPromise) {
+  client = new MongoClient(uri, options);
+  clientPromise = client.connect();
+}
 
 async function connectToDatabase() {
   try {
-    await client.connect();
-    return client.db('gurun-site');
+    const client = await clientPromise;
+    const database = client.db('gurun-site');
+    return database;
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    throw new Error('Failed to connect to database');
+    throw error;
   }
 }
 
