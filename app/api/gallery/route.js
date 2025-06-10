@@ -1,56 +1,46 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
+import { ObjectId } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
-  throw new Error('Please add your MongoDB URI to .env.local');
+  throw new Error('MONGODB_URI is not defined in environment variables');
 }
 
 const uri = process.env.MONGODB_URI;
-const options = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-};
-
-let client;
-let clientPromise;
-
-if (!clientPromise) {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
-}
+const client = new MongoClient(uri);
 
 async function connectToDatabase() {
   try {
-    const client = await clientPromise;
-    const database = client.db('gurun-site');
-    return database;
+    await client.connect();
+    return client.db('gurun');
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    throw error;
+    throw new Error('Failed to connect to database');
   }
 }
 
 // GET all gallery images
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get('page')) || 1;
+  const limit = parseInt(searchParams.get('limit')) || 9;
+  const category = searchParams.get('category') || 'all';
+  const skip = (page - 1) * limit;
+
+  let db;
   try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 9;
-    const skip = (page - 1) * limit;
+    db = await connectToDatabase();
+    const collection = db.collection('gallery');
 
-    const database = await connectToDatabase();
-    const collection = database.collection('gallery');
+    // Kategori filtresi
+    const filter = category === 'all' ? {} : { category };
 
-    // Get total count for pagination
-    const total = await collection.countDocuments();
-    const hasMore = skip + limit < total;
+    // Toplam resim sayısını al
+    const total = await collection.countDocuments(filter);
 
-    // Get paginated images
+    // Resimleri getir
     const images = await collection
-      .find({})
+      .find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -58,62 +48,72 @@ export async function GET(request) {
 
     return NextResponse.json({
       images,
-      hasMore,
-      total,
-      page,
-      limit
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Error fetching images:', error);
     return NextResponse.json(
       { error: 'Failed to fetch images' },
       { status: 500 }
     );
   } finally {
-    await client.close();
+    if (db) {
+      await client.close();
+    }
   }
 }
 
 // POST new gallery image
 export async function POST(request) {
+  let db;
   try {
     const body = await request.json();
-    const { title, category, image } = body;
+    const { image, category } = body;
 
-    if (!title || !category || !image) {
+    if (!image || !category) {
       return NextResponse.json(
-        { error: 'Title, category and image are required' },
+        { error: 'Image and category are required' },
         { status: 400 }
       );
     }
 
-    const database = await connectToDatabase();
-    const collection = database.collection('gallery');
+    db = await connectToDatabase();
+    const collection = db.collection('gallery');
 
     const result = await collection.insertOne({
-      title,
-      category,
       image,
+      category,
       createdAt: new Date()
     });
 
-    return NextResponse.json({ id: result.insertedId });
+    return NextResponse.json({
+      success: true,
+      imageId: result.insertedId
+    });
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Error uploading image:', error);
     return NextResponse.json(
       { error: 'Failed to upload image' },
       { status: 500 }
     );
   } finally {
-    await client.close();
+    if (db) {
+      await client.close();
+    }
   }
 }
 
 // DELETE gallery image
 export async function DELETE(request) {
+  let db;
   try {
-    const body = await request.json();
-    const { id } = body;
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json(
@@ -122,10 +122,10 @@ export async function DELETE(request) {
       );
     }
 
-    const database = await connectToDatabase();
-    const collection = database.collection('gallery');
+    db = await connectToDatabase();
+    const collection = db.collection('gallery');
 
-    const result = await collection.deleteOne({ _id: id });
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
@@ -136,12 +136,14 @@ export async function DELETE(request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('Error deleting image:', error);
     return NextResponse.json(
       { error: 'Failed to delete image' },
       { status: 500 }
     );
   } finally {
-    await client.close();
+    if (db) {
+      await client.close();
+    }
   }
 } 
