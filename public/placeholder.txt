@@ -1,0 +1,12 @@
+The following images are needed for the website:
+
+1. hero-bg.jpg - A high-quality image of a wheat field or modern flour factory
+2. product-1.jpg - Image of flour product type 550
+3. product-2.jpg - Image of flour product type 650
+4. product-3.jpg - Image of special purpose flour
+5. factory.jpg - Image of the factory building
+6. gallery-1.jpg - Factory exterior view
+7. gallery-2.jpg - Production line image
+8. gallery-3.jpg - Quality control image
+
+Please replace this file with actual images. 
