@@ -1,49 +1,87 @@
-import db from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { MongoClient } from 'mongodb';
+
+const uri = process.env.MONGODB_URI;
+const client = new MongoClient(uri);
 
 export async function GET() {
   try {
-    const products = db.prepare('SELECT * FROM products').all();
-    return Response.json(products);
+    await client.connect();
+    const database = client.db('gurun-site');
+    const collection = database.collection('products');
+    const products = await collection.find({}).toArray();
+    return NextResponse.json(products);
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('Database error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.close();
   }
 }
 
 export async function POST(request) {
   try {
-    const data = await request.json();
-    const result = db.prepare(`
-      INSERT INTO products (name, category, price, stock, description, image)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(data.name, data.category, data.price, data.stock, data.description, data.image);
-    
-    return Response.json({ id: result.lastInsertRowid });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-}
+    const body = await request.json();
+    const { name, description, category, image } = body;
 
-export async function PUT(request) {
-  try {
-    const data = await request.json();
-    const result = db.prepare(`
-      UPDATE products 
-      SET name = ?, category = ?, price = ?, stock = ?, description = ?, image = ?
-      WHERE id = ?
-    `).run(data.name, data.category, data.price, data.stock, data.description, data.image, data.id);
-    
-    return Response.json({ success: true });
+    if (!name || !category || !image) {
+      return NextResponse.json(
+        { error: 'Name, category and image are required' },
+        { status: 400 }
+      );
+    }
+
+    await client.connect();
+    const database = client.db('gurun-site');
+    const collection = database.collection('products');
+
+    const result = await collection.insertOne({
+      name,
+      description,
+      category,
+      image,
+      createdAt: new Date()
+    });
+
+    return NextResponse.json({ id: result.insertedId });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('Database error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.close();
   }
 }
 
 export async function DELETE(request) {
   try {
-    const { id } = await request.json();
-    db.prepare('DELETE FROM products WHERE id = ?').run(id);
-    return Response.json({ success: true });
+    const body = await request.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await client.connect();
+    const database = client.db('gurun-site');
+    const collection = database.collection('products');
+
+    const result = await collection.deleteOne({ _id: id });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('Database error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.close();
   }
 } 
