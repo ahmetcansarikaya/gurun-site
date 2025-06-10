@@ -1,20 +1,36 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
+if (!process.env.MONGODB_URI) {
+  throw new Error('Please add your MongoDB URI to .env.local');
+}
+
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri);
+
+async function connectToDatabase() {
+  try {
+    await client.connect();
+    return client.db('gurun-site');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw new Error('Failed to connect to database');
+  }
+}
 
 // GET all gallery images
 export async function GET() {
   try {
-    await client.connect();
-    const database = client.db('gurun-site');
+    const database = await connectToDatabase();
     const collection = database.collection('gallery');
     const images = await collection.find({}).toArray();
     return NextResponse.json(images);
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch images' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }
@@ -33,8 +49,7 @@ export async function POST(request) {
       );
     }
 
-    await client.connect();
-    const database = client.db('gurun-site');
+    const database = await connectToDatabase();
     const collection = database.collection('gallery');
 
     const result = await collection.insertOne({
@@ -47,7 +62,10 @@ export async function POST(request) {
     return NextResponse.json({ id: result.insertedId });
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to upload image' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }
@@ -66,8 +84,7 @@ export async function DELETE(request) {
       );
     }
 
-    await client.connect();
-    const database = client.db('gurun-site');
+    const database = await connectToDatabase();
     const collection = database.collection('gallery');
 
     const result = await collection.deleteOne({ _id: id });
@@ -82,7 +99,10 @@ export async function DELETE(request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Database error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete image' },
+      { status: 500 }
+    );
   } finally {
     await client.close();
   }
