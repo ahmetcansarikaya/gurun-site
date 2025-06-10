@@ -3,14 +3,30 @@ import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
+    const cookieStore = cookies();
+    const token = cookieStore.get('adminToken');
+
+    if (!token) {
+      return NextResponse.json(
+        { message: 'Kullanıcı zaten çıkış yapmış' },
+        { status: 200 }
+      );
+    }
+
     // Token'ı sil
-    cookies().delete('adminToken');
+    cookieStore.delete('adminToken');
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: 'Çıkış başarılı'
+    });
   } catch (error) {
     console.error('Logout error:', error);
     return NextResponse.json(
-      { message: 'Bir hata oluştu' },
+      { 
+        message: 'Çıkış yapılırken bir hata oluştu',
+        error: error.message
+      },
       { status: 500 }
     );
   }

@@ -3,21 +3,29 @@ import { cookies } from 'next/headers';
 
 export async function GET() {
   try {
-    const token = cookies().get('adminToken');
+    const cookieStore = cookies();
+    const token = cookieStore.get('adminToken');
     
     if (!token) {
       return NextResponse.json(
-        { authenticated: false },
+        { authenticated: false, message: 'No token found' },
         { status: 401 }
       );
     }
 
     // Token varsa kullanıcı giriş yapmış demektir
-    return NextResponse.json({ authenticated: true });
+    return NextResponse.json({ 
+      authenticated: true,
+      message: 'User is authenticated'
+    });
   } catch (error) {
     console.error('Auth check error:', error);
     return NextResponse.json(
-      { authenticated: false },
+      { 
+        authenticated: false,
+        message: 'Authentication check failed',
+        error: error.message
+      },
       { status: 500 }
     );
   }
