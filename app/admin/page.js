@@ -9,24 +9,73 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    products: 0,
+    messages: 0,
+    images: 0,
+    settings: 'Güncel'
+  });
   const router = useRouter();
 
   useEffect(() => {
     const auth = localStorage.getItem('adminAuth');
     if (auth === 'true') {
       setIsAuthenticated(true);
+      fetchStats();
     }
+    setIsLoading(false);
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      // Ürün sayısını al
+      const productsResponse = await fetch('/api/products');
+      const products = await productsResponse.json();
+      
+      // Galeri görsellerini al
+      const galleryResponse = await fetch('/api/gallery');
+      const gallery = await galleryResponse.json();
+
+      setStats({
+        products: products.length || 0,
+        messages: 0, // Mesaj API'si henüz yok
+        images: gallery.length || 0,
+        settings: 'Güncel'
+      });
+    } catch (error) {
+      console.error('İstatistikler yüklenirken hata:', error);
+      // Hata durumunda varsayılan değerleri kullan
+      setStats({
+        products: 0,
+        messages: 0,
+        images: 0,
+        settings: 'Güncel'
+      });
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (username === 'admin' && password === 'admin123') {
       localStorage.setItem('adminAuth', 'true');
       setIsAuthenticated(true);
+      fetchStats();
     } else {
       setError('Kullanıcı adı veya şifre hatalı');
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -88,13 +137,6 @@ export default function AdminPage() {
       </div>
     );
   }
-
-  const [stats] = useState({
-    products: 12,
-    messages: 5,
-    images: 24,
-    settings: 'Güncel'
-  });
 
   const quickLinks = [
     {
