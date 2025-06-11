@@ -30,10 +30,11 @@ export async function POST(request) {
         name: 'adminToken',
         value: token,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: true,
+        sameSite: 'none',
         path: '/',
-        maxAge: 60 * 60 * 24 // 1 gün
+        maxAge: 60 * 60 * 24, // 1 gün
+        domain: '.prestijstudio.com'
       });
 
       // CORS headers ekle
