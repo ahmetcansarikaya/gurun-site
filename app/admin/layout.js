@@ -16,7 +16,8 @@ export default function AdminLayout({ children }) {
         const response = await fetch('/api/auth/check', {
           credentials: 'include',
           headers: {
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Content-Type': 'application/json'
           }
         });
         

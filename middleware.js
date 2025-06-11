@@ -9,12 +9,18 @@ export function middleware(request) {
       
       // Token yoksa login sayfasına yönlendir
       if (!token) {
-        return NextResponse.redirect(new URL('/admin/login', request.url));
+        const response = NextResponse.redirect(new URL('/admin/login', request.url));
+        response.headers.set('Access-Control-Allow-Credentials', 'true');
+        response.headers.set('Access-Control-Allow-Origin', 'https://prestijstudio.com');
+        return response;
       }
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  response.headers.set('Access-Control-Allow-Origin', 'https://prestijstudio.com');
+  return response;
 }
 
 export const config = {

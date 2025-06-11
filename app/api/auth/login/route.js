@@ -33,15 +33,14 @@ export async function POST(request) {
         secure: true,
         sameSite: 'none',
         path: '/',
-        maxAge: 60 * 60 * 24, // 1 gün
-        domain: '.prestijstudio.com'
+        maxAge: 60 * 60 * 24 // 1 gün
       });
 
       // CORS headers ekle
       response.headers.set('Access-Control-Allow-Credentials', 'true');
-      response.headers.set('Access-Control-Allow-Origin', request.headers.get('origin') || '*');
+      response.headers.set('Access-Control-Allow-Origin', 'https://prestijstudio.com');
       response.headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-      response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+      response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Cookie');
 
       return response;
     }
