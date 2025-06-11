@@ -3,43 +3,34 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request) {
   try {
     const cookieStore = cookies();
     const token = cookieStore.get('adminToken');
 
-    if (!token) {
-      console.log('No token found in cookies');
-      return NextResponse.json(
-        { 
-          authenticated: false,
-          message: 'Token bulunamadı'
-        },
-        { status: 401 }
-      );
-    }
-
-    console.log('Token found:', token.value);
-
-    // Token'ın geçerliliğini kontrol et
-    if (token.value.startsWith('dummy-token-')) {
-      return NextResponse.json({ 
+    // CORS headers ekle
+    const response = NextResponse.json(
+      token ? 
+      { 
         authenticated: true,
         message: 'Oturum aktif'
-      });
-    }
-
-    console.log('Invalid token format');
-    return NextResponse.json(
+      } : 
       { 
         authenticated: false,
-        message: 'Geçersiz token'
+        message: 'Token bulunamadı'
       },
-      { status: 401 }
+      { status: token ? 200 : 401 }
     );
+
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Origin', request.headers.get('origin') || '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    return response;
   } catch (error) {
     console.error('Auth check error:', error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       { 
         authenticated: false,
         message: 'Kimlik doğrulama kontrolü sırasında bir hata oluştu',
@@ -47,5 +38,12 @@ export async function GET() {
       },
       { status: 500 }
     );
+
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Origin', request.headers.get('origin') || '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    return response;
   }
 } 
