@@ -18,13 +18,17 @@ export async function POST(request) {
     if (username === 'admin' && password === 'admin123') {
       // Başarılı giriş - token oluştur ve cookie'ye kaydet
       const token = 'dummy-token-' + Date.now();
+      
+      // Response oluştur
       const response = NextResponse.json({ 
         success: true,
         message: 'Giriş başarılı'
       });
 
-      // Cookie'yi response header'ına ekle
-      response.cookies.set('adminToken', token, {
+      // Cookie'yi ayarla
+      response.cookies.set({
+        name: 'adminToken',
+        value: token,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

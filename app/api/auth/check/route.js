@@ -9,6 +9,7 @@ export async function GET() {
     const token = cookieStore.get('adminToken');
 
     if (!token) {
+      console.log('No token found in cookies');
       return NextResponse.json(
         { 
           authenticated: false,
@@ -18,6 +19,8 @@ export async function GET() {
       );
     }
 
+    console.log('Token found:', token.value);
+
     // Token'ın geçerliliğini kontrol et
     if (token.value.startsWith('dummy-token-')) {
       return NextResponse.json({ 
@@ -26,6 +29,7 @@ export async function GET() {
       });
     }
 
+    console.log('Invalid token format');
     return NextResponse.json(
       { 
         authenticated: false,

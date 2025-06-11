@@ -21,13 +21,16 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        router.push('/admin');
+        setTimeout(() => {
+          router.push('/admin');
+        }, 100);
       } else {
         setError(data.message || 'Giriş başarısız');
       }
