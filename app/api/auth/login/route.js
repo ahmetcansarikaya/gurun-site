@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -17,19 +19,21 @@ export async function POST(request) {
     if (username === 'admin' && password === 'admin123') {
       // Başarılı giriş - token oluştur ve cookie'ye kaydet
       const token = 'dummy-token-' + Date.now();
-      const cookieStore = cookies();
-      
-      cookieStore.set('adminToken', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 24 // 1 gün
-      });
-
-      return NextResponse.json({ 
+      const response = NextResponse.json({ 
         success: true,
         message: 'Giriş başarılı'
       });
+
+      // Cookie'yi response header'ına ekle
+      response.cookies.set('adminToken', token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+        maxAge: 60 * 60 * 24 // 1 gün
+      });
+
+      return response;
     }
 
     return NextResponse.json(
