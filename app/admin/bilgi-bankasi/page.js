@@ -2,41 +2,40 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 
-export default function AdminGallery() {
+export default function AdminKnowledgeBase() {
   const router = useRouter();
-  const [images, setImages] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    category: 'fabrika',
-    image: null
+    content: '',
+    category: 'urunler'
   });
 
-  // Görselleri getir
-  const fetchImages = async () => {
+  // Bilgileri getir
+  const fetchItems = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(
-        `/api/gallery?category=${selectedCategory}&page=${currentPage}`
+        `/api/knowledge?category=${selectedCategory}&page=${currentPage}`
       );
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Görseller getirilirken bir hata oluştu');
+        throw new Error(data.error || 'Bilgiler getirilirken bir hata oluştu');
       }
 
-      setImages(data.images);
-      setTotalPages(data.pagination.totalPages);
+      setItems(data.items || []);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
-      console.error('Error fetching images:', error);
+      console.error('Error fetching items:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -44,102 +43,63 @@ export default function AdminGallery() {
   };
 
   useEffect(() => {
-    fetchImages();
+    fetchItems();
   }, [selectedCategory, currentPage]);
 
-  // Görsel yükle
-  const handleImageUpload = async (file) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Görsel yüklenirken bir hata oluştu');
-      }
-
-      return data.url;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
-    }
-  };
-
-  // Yeni görsel ekle
+  // Yeni bilgi ekle
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.image) {
-      setError('Lütfen bir görsel seçin');
-      return;
-    }
 
     try {
-      setUploading(true);
       setError(null);
 
-      // Önce görseli yükle
-      const imageUrl = await handleImageUpload(formData.image);
-
-      // Sonra galeriye ekle
-      const response = await fetch('/api/gallery', {
+      const response = await fetch('/api/knowledge', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          title: formData.title,
-          category: formData.category,
-          url: imageUrl
-        })
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Görsel eklenirken bir hata oluştu');
+        throw new Error(data.error || 'Bilgi eklenirken bir hata oluştu');
       }
 
       setShowModal(false);
       setFormData({
         title: '',
-        category: 'fabrika',
-        image: null
+        content: '',
+        category: 'urunler'
       });
-      fetchImages();
+      fetchItems(); // Listeyi yenile
     } catch (error) {
-      console.error('Error adding image:', error);
+      console.error('Error adding item:', error);
       setError(error.message);
-    } finally {
-      setUploading(false);
     }
   };
 
-  // Görsel sil
+  // Bilgi sil
   const handleDelete = async (id) => {
-    if (!confirm('Bu görseli silmek istediğinizden emin misiniz?')) {
+    if (!confirm('Bu bilgiyi silmek istediğinizden emin misiniz?')) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/gallery?id=${id}`, {
+      const response = await fetch(`/api/knowledge?id=${id}`, {
         method: 'DELETE'
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Görsel silinirken bir hata oluştu');
+        throw new Error(data.error || 'Bilgi silinirken bir hata oluştu');
       }
 
-      fetchImages();
+      fetchItems(); // Listeyi yenile
     } catch (error) {
-      console.error('Error deleting image:', error);
+      console.error('Error deleting item:', error);
       setError(error.message);
     }
   };
@@ -147,12 +107,12 @@ export default function AdminGallery() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-black">Galeri Yönetimi</h1>
+        <h1 className="text-2xl font-bold text-black">Bilgi Bankası Yönetimi</h1>
         <button
           onClick={() => setShowModal(true)}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
-          Yeni Görsel Ekle
+          Yeni Bilgi Ekle
         </button>
       </div>
 
@@ -164,8 +124,9 @@ export default function AdminGallery() {
           className="border rounded px-3 py-2"
         >
           <option value="all">Tüm Kategoriler</option>
-          <option value="fabrika">Fabrika</option>
-          <option value="ekip">Ekip</option>
+          <option value="urunler">Ürünler</option>
+          <option value="projeler">Projeler</option>
+          <option value="referanslar">Referanslar</option>
         </select>
       </div>
 
@@ -176,31 +137,26 @@ export default function AdminGallery() {
         </div>
       )}
 
-      {/* Görsel Listesi */}
+      {/* Bilgi Listesi */}
       {loading ? (
         <div className="text-center py-8 text-black">Yükleniyor...</div>
+      ) : items.length === 0 ? (
+        <div className="text-center text-gray-500">Henüz bilgi eklenmemiş</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {images.map((image) => (
+          {items.map(item => (
             <div
-              key={image.id}
+              key={item.id}
               className="border rounded-lg overflow-hidden shadow-lg"
             >
-              <div className="relative h-48">
-                <Image
-                  src={image.url}
-                  alt={image.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
               <div className="p-4">
-                <h3 className="text-lg font-semibold mb-2 text-black">{image.title}</h3>
+                <h3 className="text-lg font-semibold mb-2 text-black">{item.title}</h3>
+                <p className="text-black mb-2">{item.content}</p>
                 <p className="text-sm text-black mb-4">
-                  Kategori: {image.category}
+                  Kategori: {item.category}
                 </p>
                 <button
-                  onClick={() => handleDelete(image.id)}
+                  onClick={() => handleDelete(item.id)}
                   className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full"
                 >
                   Sil
@@ -230,21 +186,33 @@ export default function AdminGallery() {
         </div>
       )}
 
-      {/* Yeni Görsel Ekleme Modalı */}
+      {/* Yeni Bilgi Ekleme Modalı */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-black">Yeni Görsel Ekle</h2>
+            <h2 className="text-xl font-bold mb-4 text-black">Yeni Bilgi Ekle</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
                 <label className="block text-black mb-2">Başlık</label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
+                  onChange={e =>
+                    setFormData(prev => ({ ...prev, title: e.target.value }))
                   }
                   className="w-full px-3 py-2 border rounded text-black"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-black mb-2">İçerik</label>
+                <textarea
+                  value={formData.content}
+                  onChange={e =>
+                    setFormData(prev => ({ ...prev, content: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border rounded text-black"
+                  rows="3"
                   required
                 />
               </div>
@@ -252,27 +220,16 @@ export default function AdminGallery() {
                 <label className="block text-black mb-2">Kategori</label>
                 <select
                   value={formData.category}
-                  onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
+                  onChange={e =>
+                    setFormData(prev => ({ ...prev, category: e.target.value }))
                   }
                   className="w-full px-3 py-2 border rounded text-black"
                   required
                 >
-                  <option value="fabrika">Fabrika</option>
-                  <option value="ekip">Ekip</option>
+                  <option value="urunler">Ürünler</option>
+                  <option value="projeler">Projeler</option>
+                  <option value="referanslar">Referanslar</option>
                 </select>
-              </div>
-              <div className="mb-4">
-                <label className="block text-black mb-2">Görsel</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.files[0] })
-                  }
-                  className="w-full px-3 py-2 border rounded text-black"
-                  required
-                />
               </div>
               <div className="flex justify-end gap-2">
                 <button

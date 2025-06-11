@@ -13,8 +13,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState({
     products: 0,
     messages: 0,
-    images: 0,
-    settings: 'Güncel'
+    gallery: 0,
+    knowledge: 0
   });
   const router = useRouter();
 
@@ -29,29 +29,28 @@ export default function AdminPage() {
 
   const fetchStats = async () => {
     try {
-      // Ürün sayısını al
-      const productsResponse = await fetch('/api/products');
-      const products = await productsResponse.json();
-      
-      // Galeri görsellerini al
-      const galleryResponse = await fetch('/api/gallery');
-      const gallery = await galleryResponse.json();
+      const [productsRes, messagesRes, galleryRes, knowledgeRes] = await Promise.all([
+        fetch('/api/products?limit=1'),
+        fetch('/api/messages?limit=1'),
+        fetch('/api/gallery?limit=1'),
+        fetch('/api/knowledge?limit=1')
+      ]);
+
+      const [productsData, messagesData, galleryData, knowledgeData] = await Promise.all([
+        productsRes.json(),
+        messagesRes.json(),
+        galleryRes.json(),
+        knowledgeRes.json()
+      ]);
 
       setStats({
-        products: products.length || 0,
-        messages: 0, // Mesaj API'si henüz yok
-        images: gallery.length || 0,
-        settings: 'Güncel'
+        products: productsData.pagination?.total || 0,
+        messages: messagesData.pagination?.total || 0,
+        gallery: galleryData.pagination?.total || 0,
+        knowledge: knowledgeData.pagination?.total || 0
       });
     } catch (error) {
-      console.error('İstatistikler yüklenirken hata:', error);
-      // Hata durumunda varsayılan değerleri kullan
-      setStats({
-        products: 0,
-        messages: 0,
-        images: 0,
-        settings: 'Güncel'
-      });
+      console.error('Error fetching stats:', error);
     }
   };
 
@@ -161,10 +160,10 @@ export default function AdminPage() {
       color: 'bg-purple-500'
     },
     {
-      title: 'Ayarlar',
-      description: 'Site ayarları ve yapılandırma',
+      title: 'Bilgi Bankası',
+      description: 'Bilgi bankası için destek',
       icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
-      path: '/admin/ayarlar',
+      path: '/admin/bilgi-bankasi',
       color: 'bg-yellow-500'
     }
   ];
@@ -217,8 +216,8 @@ export default function AdminPage() {
               </svg>
             </div>
             <div className="ml-4">
-              <h2 className="text-sm font-medium text-gray-600">Görseller</h2>
-              <p className="text-lg font-semibold text-gray-900">{stats.images}</p>
+              <h2 className="text-sm font-medium text-gray-600">Galeri</h2>
+              <p className="text-lg font-semibold text-gray-900">{stats.gallery}</p>
             </div>
           </div>
         </div>
@@ -231,8 +230,8 @@ export default function AdminPage() {
               </svg>
             </div>
             <div className="ml-4">
-              <h2 className="text-sm font-medium text-gray-600">Ayarlar</h2>
-              <p className="text-lg font-semibold text-gray-900">{stats.settings}</p>
+              <h2 className="text-sm font-medium text-gray-600">Bilgi Bankası</h2>
+              <p className="text-lg font-semibold text-gray-900">{stats.knowledge}</p>
             </div>
           </div>
         </div>

@@ -1,131 +1,98 @@
 import { NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import { openDb } from '@/lib/db';
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
-}
-
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
-
-async function connectToDatabase() {
-  try {
-    await client.connect();
-    return client.db('gurun');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw new Error('Failed to connect to database');
-  }
-}
-
-// GET all gallery images
+// GET - Görselleri getir
 export async function GET(request) {
+  let db;
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
+    const category = searchParams.get('category') || 'all';
     const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 12;
+    const limit = parseInt(searchParams.get('limit')) || 10;
+    const offset = (page - 1) * limit;
 
-    // Kategori kontrolü
-    if (category && !['fabrika', 'ekip'].includes(category)) {
-      return NextResponse.json(
-        { error: 'Geçersiz kategori' },
-        { status: 400 }
-      );
-    }
-
-    await client.connect();
-    const db = client.db('gurun');
-    const collection = db.collection('gallery');
+    db = await openDb();
 
     // Toplam görsel sayısını al
-    const totalImages = await collection.countDocuments(
-      category ? { category } : {}
+    const totalResult = await db.get(
+      'SELECT COUNT(*) as total FROM gallery WHERE category = ? OR ? = "all"',
+      [category, category]
     );
+    const total = totalResult.total;
+    const totalPages = Math.ceil(total / limit);
 
     // Görselleri getir
-    const images = await collection
-      .find(category ? { category } : {})
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .toArray();
+    const images = await db.all(
+      'SELECT * FROM gallery WHERE category = ? OR ? = "all" ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [category, category, limit, offset]
+    );
 
     return NextResponse.json({
       images,
       pagination: {
         page,
         limit,
-        totalImages,
-        totalPages: Math.ceil(totalImages / limit)
+        total,
+        totalPages
       }
     });
   } catch (error) {
-    console.error('Error fetching images:', error);
+    console.error('Görseller getirilirken hata:', error);
     return NextResponse.json(
-      { error: 'Görseller getirilirken bir hata oluştu' },
+      { error: 'Görseller getirilirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }
 
-// POST new gallery image
+// POST - Yeni görsel ekle
 export async function POST(request) {
+  let db;
   try {
-    const { url, title, category } = await request.json();
+    const body = await request.json();
+    const { title, category, url } = body;
 
     // Gerekli alanları kontrol et
-    if (!url || !category) {
+    if (!title || !category || !url) {
       return NextResponse.json(
-        { error: 'URL ve kategori alanları zorunludur' },
+        { error: 'Başlık, kategori ve görsel zorunludur' },
         { status: 400 }
       );
     }
 
-    // Kategori kontrolü
-    if (!['fabrika', 'ekip'].includes(category)) {
+    // Geçerli kategorileri kontrol et
+    const validCategories = ['fabrika', 'ekip'];
+    if (!validCategories.includes(category)) {
       return NextResponse.json(
         { error: 'Geçersiz kategori' },
         { status: 400 }
       );
     }
 
-    await client.connect();
-    const db = client.db('gurun');
-    const collection = db.collection('gallery');
+    db = await openDb();
 
-    const result = await collection.insertOne({
-      url,
-      title: title || '',
-      category,
-      createdAt: new Date()
-    });
+    // Görseli ekle
+    const result = await db.run(
+      'INSERT INTO gallery (title, category, url) VALUES (?, ?, ?)',
+      [title, category, url]
+    );
 
     return NextResponse.json({
       message: 'Görsel başarıyla eklendi',
-      image: {
-        _id: result.insertedId,
-        url,
-        title: title || '',
-        category,
-        createdAt: new Date()
-      }
+      imageId: result.lastID
     });
   } catch (error) {
-    console.error('Error adding image:', error);
+    console.error('Görsel eklenirken hata:', error);
     return NextResponse.json(
-      { error: 'Görsel eklenirken bir hata oluştu' },
+      { error: 'Görsel eklenirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }
 
-// DELETE gallery image
+// DELETE - Görsel sil
 export async function DELETE(request) {
+  let db;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -137,15 +104,15 @@ export async function DELETE(request) {
       );
     }
 
-    await client.connect();
-    const db = client.db('gurun');
-    const collection = db.collection('gallery');
+    db = await openDb();
 
-    const result = await collection.deleteOne({
-      _id: new ObjectId(id)
-    });
+    // Görseli sil
+    const result = await db.run(
+      'DELETE FROM gallery WHERE id = ?',
+      [id]
+    );
 
-    if (result.deletedCount === 0) {
+    if (result.changes === 0) {
       return NextResponse.json(
         { error: 'Görsel bulunamadı' },
         { status: 404 }
@@ -156,12 +123,10 @@ export async function DELETE(request) {
       message: 'Görsel başarıyla silindi'
     });
   } catch (error) {
-    console.error('Error deleting image:', error);
+    console.error('Görsel silinirken hata:', error);
     return NextResponse.json(
-      { error: 'Görsel silinirken bir hata oluştu' },
+      { error: 'Görsel silinirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 } 

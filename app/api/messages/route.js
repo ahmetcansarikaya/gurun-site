@@ -1,40 +1,27 @@
 import { NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import { openDb } from '@/lib/db';
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
-}
-
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
-
-async function connectToDatabase() {
-  try {
-    await client.connect();
-    return client.db('gurun');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw new Error('Failed to connect to database');
-  }
-}
-
+// GET - Mesajları getir
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get('page')) || 1;
-  const limit = parseInt(searchParams.get('limit')) || 10;
-  const skip = (page - 1) * limit;
-
   let db;
   try {
-    db = await connectToDatabase();
-    const messages = await db.collection('messages')
-      .find()
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray();
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 10;
+    const offset = (page - 1) * limit;
 
-    const total = await db.collection('messages').countDocuments();
+    db = await openDb();
+
+    // Toplam mesaj sayısını al
+    const totalResult = await db.get('SELECT COUNT(*) as total FROM messages');
+    const total = totalResult.total;
+    const totalPages = Math.ceil(total / limit);
+
+    // Mesajları getir
+    const messages = await db.all(
+      'SELECT * FROM messages ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [limit, offset]
+    );
 
     return NextResponse.json({
       messages,
@@ -42,90 +29,91 @@ export async function GET(request) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages
       }
     });
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    console.error('Mesajlar getirilirken hata:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch messages' },
+      { error: 'Mesajlar getirilirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }
 
+// POST - Yeni mesaj ekle
 export async function POST(request) {
-  const { name, email, message } = await request.json();
-
-  if (!name || !email || !message) {
-    return NextResponse.json(
-      { error: 'Name, email and message are required' },
-      { status: 400 }
-    );
-  }
-
   let db;
   try {
-    db = await connectToDatabase();
-    const result = await db.collection('messages').insertOne({
-      name,
-      email,
-      message,
-      createdAt: new Date(),
-    });
+    const body = await request.json();
+    const { name, email, phone, message } = body;
+
+    // Gerekli alanları kontrol et
+    if (!name || !email || !message) {
+      return NextResponse.json(
+        { error: 'İsim, e-posta ve mesaj alanları zorunludur' },
+        { status: 400 }
+      );
+    }
+
+    db = await openDb();
+
+    // Mesajı ekle
+    const result = await db.run(
+      'INSERT INTO messages (name, email, phone, message) VALUES (?, ?, ?, ?)',
+      [name, email, phone || '', message]
+    );
 
     return NextResponse.json({
-      message: 'Message sent successfully',
-      id: result.insertedId
+      message: 'Mesajınız başarıyla gönderildi',
+      messageId: result.lastID
     });
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('Mesaj eklenirken hata:', error);
     return NextResponse.json(
-      { error: 'Failed to send message' },
+      { error: 'Mesaj eklenirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }
 
+// DELETE - Mesaj sil
 export async function DELETE(request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-
-  if (!id) {
-    return NextResponse.json(
-      { error: 'Message ID is required' },
-      { status: 400 }
-    );
-  }
-
   let db;
   try {
-    db = await connectToDatabase();
-    const result = await db.collection('messages').deleteOne({
-      _id: new ObjectId(id)
-    });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-    if (result.deletedCount === 0) {
+    if (!id) {
       return NextResponse.json(
-        { error: 'Message not found' },
+        { error: 'Mesaj ID\'si gerekli' },
+        { status: 400 }
+      );
+    }
+
+    db = await openDb();
+
+    // Mesajı sil
+    const result = await db.run(
+      'DELETE FROM messages WHERE id = ?',
+      [id]
+    );
+
+    if (result.changes === 0) {
+      return NextResponse.json(
+        { error: 'Mesaj bulunamadı' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
-      message: 'Message deleted successfully'
+      message: 'Mesaj başarıyla silindi'
     });
   } catch (error) {
-    console.error('Error deleting message:', error);
+    console.error('Mesaj silinirken hata:', error);
     return NextResponse.json(
-      { error: 'Failed to delete message' },
+      { error: 'Mesaj silinirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 } 

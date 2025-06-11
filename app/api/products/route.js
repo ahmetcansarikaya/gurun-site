@@ -1,116 +1,102 @@
 import { NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import { openDb } from '@/lib/db';
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined in environment variables');
-}
-
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
-
-async function connectToDatabase() {
-  try {
-    await client.connect();
-    return client.db('gurun');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw new Error('Failed to connect to database');
-  }
-}
-
+// GET - Ürünleri getir
 export async function GET(request) {
+  let db;
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
+    const category = searchParams.get('category') || '';
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 9;
+    const offset = (page - 1) * limit;
 
-    await client.connect();
-    const db = client.db('gurun');
-    const collection = db.collection('products');
+    db = await openDb();
 
     // Toplam ürün sayısını al
-    const totalProducts = await collection.countDocuments(
-      category ? { category } : {}
-    );
+    let totalResult;
+    if (category) {
+      totalResult = await db.get(
+        'SELECT COUNT(*) as total FROM products WHERE category = ?',
+        [category]
+      );
+    } else {
+      totalResult = await db.get('SELECT COUNT(*) as total FROM products');
+    }
+    const total = totalResult.total;
+    const totalPages = Math.ceil(total / limit);
 
     // Ürünleri getir
-    const products = await collection
-      .find(category ? { category } : {})
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .toArray();
+    let products;
+    if (category) {
+      products = await db.all(
+        'SELECT * FROM products WHERE category = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        [category, limit, offset]
+      );
+    } else {
+      products = await db.all(
+        'SELECT * FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        [limit, offset]
+      );
+    }
 
     return NextResponse.json({
       products,
       pagination: {
         page,
         limit,
-        totalProducts,
-        totalPages: Math.ceil(totalProducts / limit)
+        total,
+        totalPages
       }
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Ürünler getirilirken hata:', error);
     return NextResponse.json(
-      { error: 'Ürünler getirilirken bir hata oluştu' },
+      { error: 'Ürünler getirilirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }
 
+// POST - Yeni ürün ekle
 export async function POST(request) {
+  let db;
   try {
-    const { name, description, price, category, image } = await request.json();
+    const body = await request.json();
+    const { name, description, price, category, image } = body;
 
     // Gerekli alanları kontrol et
     if (!name || !price || !category || !image) {
       return NextResponse.json(
-        { error: 'Tüm alanları doldurun' },
+        { error: 'Tüm zorunlu alanları doldurun' },
         { status: 400 }
       );
     }
 
-    await client.connect();
-    const db = client.db('gurun');
-    const collection = db.collection('products');
+    db = await openDb();
 
-    const result = await collection.insertOne({
-      name,
-      description: description || '',
-      price,
-      category,
-      image,
-      createdAt: new Date()
-    });
+    // Ürünü ekle
+    const result = await db.run(
+      'INSERT INTO products (name, description, price, category, image) VALUES (?, ?, ?, ?, ?)',
+      [name, description || '', price, category, image]
+    );
 
     return NextResponse.json({
       message: 'Ürün başarıyla eklendi',
-      product: {
-        _id: result.insertedId,
-        name,
-        description: description || '',
-        price,
-        category,
-        image,
-        createdAt: new Date()
-      }
+      productId: result.lastID
     });
   } catch (error) {
-    console.error('Error adding product:', error);
+    console.error('Ürün eklenirken hata:', error);
     return NextResponse.json(
-      { error: 'Ürün eklenirken bir hata oluştu' },
+      { error: 'Ürün eklenirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 }
 
+// DELETE - Ürün sil
 export async function DELETE(request) {
+  let db;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -122,15 +108,15 @@ export async function DELETE(request) {
       );
     }
 
-    await client.connect();
-    const db = client.db('gurun');
-    const collection = db.collection('products');
+    db = await openDb();
 
-    const result = await collection.deleteOne({
-      _id: new ObjectId(id)
-    });
+    // Ürünü sil
+    const result = await db.run(
+      'DELETE FROM products WHERE id = ?',
+      [id]
+    );
 
-    if (result.deletedCount === 0) {
+    if (result.changes === 0) {
       return NextResponse.json(
         { error: 'Ürün bulunamadı' },
         { status: 404 }
@@ -141,12 +127,10 @@ export async function DELETE(request) {
       message: 'Ürün başarıyla silindi'
     });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error('Ürün silinirken hata:', error);
     return NextResponse.json(
-      { error: 'Ürün silinirken bir hata oluştu' },
+      { error: 'Ürün silinirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
-  } finally {
-    await client.close();
   }
 } 
