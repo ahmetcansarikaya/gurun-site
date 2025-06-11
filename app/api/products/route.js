@@ -19,129 +19,134 @@ async function connectToDatabase() {
 }
 
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get('page')) || 1;
-  const limit = parseInt(searchParams.get('limit')) || 9;
-  const category = searchParams.get('category') || 'all';
-  const skip = (page - 1) * limit;
-
-  let db;
   try {
-    db = await connectToDatabase();
+    const { searchParams } = new URL(request.url);
+    const category = searchParams.get('category');
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 9;
+
+    await client.connect();
+    const db = client.db('gurun');
     const collection = db.collection('products');
 
-    // Kategori filtresi
-    const filter = category === 'all' ? {} : { category };
-
     // Toplam ürün sayısını al
-    const total = await collection.countDocuments(filter);
+    const totalProducts = await collection.countDocuments(
+      category ? { category } : {}
+    );
 
     // Ürünleri getir
     const products = await collection
-      .find(filter)
+      .find(category ? { category } : {})
       .sort({ createdAt: -1 })
-      .skip(skip)
+      .skip((page - 1) * limit)
       .limit(limit)
       .toArray();
 
     return NextResponse.json({
       products,
       pagination: {
-        total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
+        totalProducts,
+        totalPages: Math.ceil(totalProducts / limit)
       }
     });
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch products' },
+      { error: 'Ürünler getirilirken bir hata oluştu' },
       { status: 500 }
     );
   } finally {
-    if (db) {
-      await client.close();
-    }
+    await client.close();
   }
 }
 
 export async function POST(request) {
-  let db;
   try {
-    const body = await request.json();
-    const { name, description, image, category } = body;
+    const { name, description, price, category, image } = await request.json();
 
-    if (!name || !description || !image || !category) {
+    // Gerekli alanları kontrol et
+    if (!name || !price || !category || !image) {
       return NextResponse.json(
-        { error: 'All fields are required' },
+        { error: 'Tüm alanları doldurun' },
         { status: 400 }
       );
     }
 
-    db = await connectToDatabase();
+    await client.connect();
+    const db = client.db('gurun');
     const collection = db.collection('products');
 
     const result = await collection.insertOne({
       name,
-      description,
-      image,
+      description: description || '',
+      price,
       category,
+      image,
       createdAt: new Date()
     });
 
     return NextResponse.json({
-      success: true,
-      productId: result.insertedId
+      message: 'Ürün başarıyla eklendi',
+      product: {
+        _id: result.insertedId,
+        name,
+        description: description || '',
+        price,
+        category,
+        image,
+        createdAt: new Date()
+      }
     });
   } catch (error) {
     console.error('Error adding product:', error);
     return NextResponse.json(
-      { error: 'Failed to add product' },
+      { error: 'Ürün eklenirken bir hata oluştu' },
       { status: 500 }
     );
   } finally {
-    if (db) {
-      await client.close();
-    }
+    await client.close();
   }
 }
 
 export async function DELETE(request) {
-  let db;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Product ID is required' },
+        { error: 'Ürün ID\'si gerekli' },
         { status: 400 }
       );
     }
 
-    db = await connectToDatabase();
+    await client.connect();
+    const db = client.db('gurun');
     const collection = db.collection('products');
 
-    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+    const result = await collection.deleteOne({
+      _id: new ObjectId(id)
+    });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(
-        { error: 'Product not found' },
+        { error: 'Ürün bulunamadı' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      message: 'Ürün başarıyla silindi'
+    });
   } catch (error) {
     console.error('Error deleting product:', error);
     return NextResponse.json(
-      { error: 'Failed to delete product' },
+      { error: 'Ürün silinirken bir hata oluştu' },
       { status: 500 }
     );
   } finally {
-    if (db) {
-      await client.close();
-    }
+    await client.close();
   }
 } 

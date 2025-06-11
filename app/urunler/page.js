@@ -2,126 +2,156 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export default function ProductsPage() {
+export default function Products() {
   const [products, setProducts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('Tümü');
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const categories = ['Tümü', 'Un', 'Kepek', 'İrmik', 'Mamüller'];
+  const categories = [
+    { id: 'all', name: 'Tümü' },
+    { id: 'un', name: 'Un' },
+    { id: 'yem', name: 'Yem' },
+    { id: 'kepek', name: 'Kepek' }
+  ];
 
-  // Ürünleri veritabanından yükle
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await fetch('/api/products');
-        const data = await response.json();
-        setProducts(data);
-      } catch (error) {
-        console.error('Ürünler yüklenirken hata:', error);
+  const fetchProducts = async (pageNum = 1) => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fetch(
+        `/api/products?page=${pageNum}&limit=9&category=${
+          selectedCategory === 'all' ? '' : selectedCategory
+        }`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
       }
-    };
 
-    fetchProducts();
-  }, []);
+      const data = await response.json();
+      
+      if (pageNum === 1) {
+        setProducts(data.products);
+      } else {
+        setProducts(prev => [...prev, ...data.products]);
+      }
+      
+      setHasMore(data.pagination.page < data.pagination.totalPages);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError('Ürünler yüklenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredProducts = selectedCategory === 'Tümü' 
-    ? products 
-    : products.filter(product => product.category === selectedCategory);
+  useEffect(() => {
+    setPage(1);
+    fetchProducts(1);
+  }, [selectedCategory]);
+
+  const loadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchProducts(nextPage);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900">Ürünlerimiz</h1>
-        <p className="mt-2 text-gray-600">Yüksek kaliteli un ve unlu mamüller</p>
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold text-center mb-8">Ürünlerimiz</h1>
 
-      {/* Category Filter */}
-      <div className="flex justify-center space-x-2 overflow-x-auto pb-2">
+      {/* Kategori Filtreleme */}
+      <div className="flex justify-center space-x-4 mb-8">
         {categories.map((category) => (
           <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-              selectedCategory === category
+            key={category.id}
+            onClick={() => setSelectedCategory(category.id)}
+            className={`px-6 py-2 rounded-lg transition-colors ${
+              selectedCategory === category.id
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            {category}
+            {category.name}
           </button>
         ))}
       </div>
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
-          <div 
-            key={product.id} 
-            className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-          >
-            <div className="w-full h-64">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="text-lg font-medium text-gray-900">{product.name}</h3>
-              <p className="text-sm text-gray-500">{product.category}</p>
-              <p className="text-sm text-gray-500 mt-1">{product.description}</p>
-              <div className="mt-4 flex justify-between items-center">
-                <span className="text-lg font-semibold text-blue-600">{product.price} TL</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  product.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  {product.stock > 0 ? 'Stokta' : 'Tükendi'}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Hata Mesajı */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
 
-      {/* Product Modal */}
-      {selectedProduct && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedProduct(null)}
-        >
-          <div className="max-w-4xl w-full bg-white rounded-xl overflow-hidden">
-            <div className="relative">
-              <img
-                src={selectedProduct.image}
-                alt={selectedProduct.name}
-                className="w-full h-auto max-h-[80vh] object-contain"
-              />
+      {/* Yükleme Göstergesi */}
+      {loading && products.length === 0 ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        <>
+          {/* Ürün Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnimatePresence>
+              {products.map((product) => (
+                <motion.div
+                  key={product._id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="bg-white rounded-lg shadow-lg overflow-hidden"
+                >
+                  <div className="relative aspect-square">
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
+                    <p className="text-gray-600 mb-4">{product.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-600 font-semibold">
+                        {product.price} TL
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {product.category}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Daha Fazla Yükle Butonu */}
+          {hasMore && !loading && (
+            <div className="mt-8 text-center">
               <button
-                onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100"
+                onClick={loadMore}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Daha Fazla Yükle
               </button>
             </div>
-            <div className="p-4">
-              <h3 className="text-xl font-medium text-gray-900">{selectedProduct.name}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedProduct.category}</p>
-              <p className="text-sm text-gray-500 mt-1">{selectedProduct.description}</p>
-              <div className="mt-4 flex justify-between items-center">
-                <span className="text-lg font-semibold text-blue-600">{selectedProduct.price} TL</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  selectedProduct.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  {selectedProduct.stock > 0 ? 'Stokta' : 'Tükendi'}
-                </span>
-              </div>
+          )}
+
+          {/* Yükleme Göstergesi */}
+          {loading && products.length > 0 && (
+            <div className="mt-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );
