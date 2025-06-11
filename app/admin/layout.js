@@ -13,15 +13,19 @@ export default function AdminLayout({ children }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/check');
-        if (!response.ok) {
-          throw new Error('Authentication failed');
-        }
+        const response = await fetch('/api/auth/check', {
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
         const data = await response.json();
         
-        if (data.authenticated) {
+        if (response.ok && data.authenticated) {
           setIsAuthenticated(true);
         } else {
+          console.error('Auth check failed:', data.message);
           router.push('/admin/login');
         }
       } catch (error) {
@@ -98,7 +102,10 @@ export default function AdminLayout({ children }) {
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('/api/auth/logout', { method: 'POST' });
+                    const response = await fetch('/api/auth/logout', { 
+                      method: 'POST',
+                      credentials: 'include'
+                    });
                     if (!response.ok) {
                       throw new Error('Logout failed');
                     }

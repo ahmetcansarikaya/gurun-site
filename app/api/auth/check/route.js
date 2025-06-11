@@ -19,7 +19,6 @@ export async function GET() {
     }
 
     // Token'ın geçerliliğini kontrol et
-    // Bu örnekte basit bir kontrol yapıyoruz
     if (token.value.startsWith('dummy-token-')) {
       return NextResponse.json({ 
         authenticated: true,
