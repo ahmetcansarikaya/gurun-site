@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminLayout({ children }) {
@@ -9,11 +9,19 @@ export default function AdminLayout({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAuth = async () => {
+      // Login sayfasındaysak authentication kontrolü yapma
+      if (pathname === '/admin/login') {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch('/api/auth/check', {
+          method: 'GET',
           credentials: 'include',
           headers: {
             'Cache-Control': 'no-cache',
@@ -39,7 +47,12 @@ export default function AdminLayout({ children }) {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, pathname]);
+
+  // Login sayfasındaysak layout'u gösterme
+  if (pathname === '/admin/login') {
+    return children;
+  }
 
   if (isLoading) {
     return (

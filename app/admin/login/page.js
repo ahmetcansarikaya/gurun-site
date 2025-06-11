@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -9,6 +9,31 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    // Sayfa yüklendiğinde mevcut token'ı kontrol et
+    const checkExistingToken = async () => {
+      try {
+        const response = await fetch('/api/auth/check', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.authenticated) {
+          router.push('/admin');
+        }
+      } catch (error) {
+        console.error('Token check error:', error);
+      }
+    };
+
+    checkExistingToken();
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,9 +53,22 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setTimeout(() => {
+        // Başarılı girişten sonra token'ı kontrol et
+        const checkResponse = await fetch('/api/auth/check', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const checkData = await checkResponse.json();
+        if (checkResponse.ok && checkData.authenticated) {
           router.push('/admin');
-        }, 100);
+        } else {
+          setError('Giriş başarılı fakat oturum başlatılamadı');
+        }
       } else {
         setError(data.message || 'Giriş başarısız');
       }
