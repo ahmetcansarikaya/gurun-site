@@ -151,20 +151,30 @@ export default function UrunlerYonetimi() {
     }
 
     try {
+      setError('');
       const response = await fetch(`/api/products?id=${selectedProduct.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          price: formData.price,
+          category: formData.category,
+          image: formData.image || selectedProduct.image
+        }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Ürün güncellenirken bir hata oluştu');
+        throw new Error(data.error || 'Ürün güncellenirken bir hata oluştu');
       }
 
       setShowEditModal(false);
-      fetchProducts();
+      setSelectedProduct(null);
+      await fetchProducts();
     } catch (err) {
       console.error('Error updating product:', err);
       setError(err.message);

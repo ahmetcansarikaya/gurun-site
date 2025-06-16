@@ -139,7 +139,8 @@ export async function PUT(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const formData = await request.formData();
+    const body = await request.json();
+    const { name, description, price, category, image } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -148,46 +149,23 @@ export async function PUT(request) {
       );
     }
 
-    const name = formData.get('name');
-    const description = formData.get('description');
-    const price = formData.get('price');
-    const category = formData.get('category');
-    const image = formData.get('image');
-
-    if (!name || !description || !price || !category) {
+    if (!name || !price || !category) {
       return NextResponse.json(
-        { error: 'Tüm alanlar gerekli' },
+        { error: 'Tüm zorunlu alanları doldurun' },
         { status: 400 }
       );
     }
 
     const db = await openDb();
-    let imageUrl = null;
-
-    // Eğer yeni bir görsel yüklendiyse
-    if (image && image.size > 0) {
-      // Önce görseli yükle
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Görsel yüklenirken bir hata oluştu');
-      }
-
-      const uploadData = await uploadResponse.json();
-      imageUrl = uploadData.url;
-    }
 
     // Ürünü güncelle
     const result = await db.run(
       `UPDATE products 
-       SET name = ?, description = ?, price = ?, category = ?${imageUrl ? ', image = ?' : ''}
+       SET name = ?, description = ?, price = ?, category = ?${image ? ', image = ?' : ''}
        WHERE id = ?`,
-      imageUrl 
-        ? [name, description, price, category, imageUrl, id]
-        : [name, description, price, category, id]
+      image 
+        ? [name, description || '', price, category, image, id]
+        : [name, description || '', price, category, id]
     );
 
     if (result.changes === 0) {
@@ -197,11 +175,14 @@ export async function PUT(request) {
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: 'Ürün başarıyla güncellendi'
+    });
   } catch (error) {
-    console.error('Error updating product:', error);
+    console.error('Ürün güncellenirken hata:', error);
     return NextResponse.json(
-      { error: 'Ürün güncellenirken bir hata oluştu' },
+      { error: 'Ürün güncellenirken bir hata oluştu: ' + error.message },
       { status: 500 }
     );
   }
