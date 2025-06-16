@@ -1,9 +1,45 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Bayiler() {
+  const [dealers, setDealers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedCity, setSelectedCity] = useState('all');
+  const [cities, setCities] = useState([]);
+
+  useEffect(() => {
+    fetchDealers();
+  }, [selectedCity]);
+
+  const fetchDealers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/dealers?city=${selectedCity}`);
+      if (!response.ok) {
+        throw new Error('Bayiler yüklenirken bir hata oluştu');
+      }
+      const data = await response.json();
+      setDealers(Array.isArray(data) ? data : data.dealers || []);
+      
+      // Şehirleri ayarla
+      if (Array.isArray(data)) {
+        const uniqueCities = [...new Set(data.map(dealer => dealer.city))];
+        setCities(uniqueCities);
+      }
+      
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+      setDealers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const lokasyonlar = [
     {
       id: 1,
@@ -36,8 +72,8 @@ export default function Bayiler() {
   ];
 
   return (
-    <div className="container-custom py-12">
-      <h1 className="text-4xl font-bold mb-8">Bayiler ve Şubeler</h1>
+    <div className="container-custom py-12 min-h-screen">
+      <h1 className="text-4xl font-bold mb-8 text-black pt-16">Bayiler</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {lokasyonlar.map((lokasyon) => (

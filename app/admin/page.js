@@ -5,11 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function AdminPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     products: 0,
     messages: 0,
@@ -17,15 +12,20 @@ export default function AdminPage() {
     knowledge: 0,
     hero: 0
   });
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const auth = localStorage.getItem('adminAuth');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
+    const checkAuth = () => {
+      const auth = localStorage.getItem('adminAuth');
+      if (auth !== 'true') {
+        window.location.href = '/admin/login';
+        return;
+      }
       fetchStats();
-    }
-    setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const fetchStats = async () => {
@@ -57,19 +57,10 @@ export default function AdminPage() {
         knowledge: knowledgeData.length || 0,
         hero: heroData?.length || 0
       });
+      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching stats:', error);
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (username === 'admin' && password === 'admin123') {
-      localStorage.setItem('adminAuth', 'true');
-      setIsAuthenticated(true);
-      fetchStats();
-    } else {
-      setError('Kullanıcı adı veya şifre hatalı');
+      setIsLoading(false);
     }
   };
 
@@ -79,67 +70,6 @@ export default function AdminPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Yükleniyor...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Admin Girişi
-            </h2>
-          </div>
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div className="rounded-md shadow-sm -space-y-px">
-              <div>
-                <label htmlFor="username" className="sr-only">
-                  Kullanıcı Adı
-                </label>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Kullanıcı Adı"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Şifre
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Şifre"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="text-red-600 text-sm text-center">{error}</div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Giriş Yap
-              </button>
-            </div>
-          </form>
         </div>
       </div>
     );
@@ -194,14 +124,19 @@ export default function AdminPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {quickLinks.map((link, index) => (
-          <div
+          <Link
             key={index}
+            href={link.path}
             className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className={`${link.color} p-3 rounded-lg`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{link.title}</h3>
+                <p className="text-sm text-gray-600 mt-1">{link.description}</p>
+              </div>
+              <div className={`${link.color} p-3 rounded-full`}>
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="h-6 w-6 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -214,17 +149,13 @@ export default function AdminPage() {
                   />
                 </svg>
               </div>
-              <span className="text-2xl font-bold text-gray-900">{link.count}</span>
             </div>
-            <h2 className="text-lg font-semibold mb-2 text-gray-900">{link.title}</h2>
-            <p className="text-gray-600 mb-4">{link.description}</p>
-            <a
-              href={link.path}
-              className="text-blue-500 hover:text-blue-700 font-medium"
-            >
-              Yönet →
-            </a>
-          </div>
+            <div className="mt-4">
+              <span className="text-sm font-medium text-gray-500">
+                Toplam: {link.count}
+              </span>
+            </div>
+          </Link>
         ))}
       </div>
     </div>

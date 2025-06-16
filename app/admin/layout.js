@@ -7,47 +7,30 @@ import Link from 'next/link';
 export default function AdminLayout({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
       // Login sayfasındaysak authentication kontrolü yapma
       if (pathname === '/admin/login') {
         setIsLoading(false);
         return;
       }
 
-      try {
-        const response = await fetch('/api/auth/check', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.authenticated) {
-          setIsAuthenticated(true);
-        } else {
-          console.error('Auth check failed:', data.message);
-          router.push('/admin/login');
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setError('Kimlik doğrulama hatası');
-        router.push('/admin/login');
-      } finally {
-        setIsLoading(false);
+      // localStorage'dan auth durumunu kontrol et
+      const auth = localStorage.getItem('adminAuth');
+      if (auth !== 'true') {
+        window.location.href = '/admin/login';
+        return;
       }
+
+      setIsAuthenticated(true);
+      setIsLoading(false);
     };
 
     checkAuth();
-  }, [router, pathname]);
+  }, [pathname]);
 
   // Login sayfasındaysak layout'u gösterme
   if (pathname === '/admin/login') {
@@ -58,14 +41,6 @@ export default function AdminLayout({ children }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-red-600">{error}</div>
       </div>
     );
   }
@@ -116,25 +91,19 @@ export default function AdminLayout({ children }) {
                 >
                   Mesajlar
                 </Link>
+                <Link
+                  href="/admin/bilgi-bankasi"
+                  className="border-transparent text-gray-700 hover:border-gray-300 hover:text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  Bilgi Bankası
+                </Link>
               </div>
             </div>
             <div className="flex items-center">
               <button
-                onClick={async () => {
-                  try {
-                    const response = await fetch('/api/auth/logout', { 
-                      method: 'POST',
-                      credentials: 'include'
-                    });
-                    if (!response.ok) {
-                      throw new Error('Logout failed');
-                    }
-                    setIsAuthenticated(false);
-                    router.push('/admin/login');
-                  } catch (error) {
-                    console.error('Logout error:', error);
-                    setError('Çıkış yapılırken bir hata oluştu');
-                  }
+                onClick={() => {
+                  localStorage.removeItem('adminAuth');
+                  window.location.href = '/admin/login';
                 }}
                 className="ml-4 px-4 py-2 text-sm text-red-600 hover:text-red-800"
               >

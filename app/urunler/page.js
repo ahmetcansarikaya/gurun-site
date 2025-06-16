@@ -4,155 +4,119 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Products() {
+export default function Urunler() {
   const [products, setProducts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(null);
 
-  const categories = [
-    { id: 'all', name: 'Tümü' },
-    { id: 'un', name: 'Un' },
-    { id: 'yem', name: 'Yem' },
-    { id: 'kepek', name: 'Kepek' }
-  ];
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-  const fetchProducts = async (pageNum = 1) => {
+  const fetchProducts = async () => {
     try {
       setLoading(true);
-      setError('');
-      const response = await fetch(
-        `/api/products?page=${pageNum}&limit=9&category=${
-          selectedCategory === 'all' ? '' : selectedCategory
-        }`
-      );
-      
+      const response = await fetch('/api/products');
       if (!response.ok) {
-        throw new Error('Failed to fetch products');
+        throw new Error('Ürünler yüklenirken bir hata oluştu');
       }
-
       const data = await response.json();
-      
-      if (pageNum === 1) {
-        setProducts(data.products);
-      } else {
-        setProducts(prev => [...prev, ...data.products]);
-      }
-      
-      setHasMore(data.pagination.page < data.pagination.totalPages);
+      // API'den gelen veriyi kontrol et ve dizi olarak ayarla
+      setProducts(Array.isArray(data) ? data : data.products || []);
+      setError(null);
     } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Ürünler yüklenirken bir hata oluştu');
+      setError(err.message);
+      setProducts([]); // Hata durumunda boş dizi
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    setPage(1);
-    fetchProducts(1);
-  }, [selectedCategory]);
-
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchProducts(nextPage);
-  };
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold text-center mb-8">Ürünlerimiz</h1>
-
-      {/* Kategori Filtreleme */}
-      <div className="flex justify-center space-x-4 mb-8 pt-8">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => setSelectedCategory(category.id)}
-            className={`px-6 py-2 rounded-lg transition-colors ${
-              selectedCategory === category.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            {category.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Hata Mesajı */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {/* Yükleme Göstergesi */}
-      {loading && products.length === 0 ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : (
-        <>
-          {/* Ürün Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <AnimatePresence>
-              {products.map((product) => (
-                <motion.div
-                  key={product._id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-white rounded-lg shadow-lg overflow-hidden"
-                >
-                  <div className="relative aspect-square">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
-                    <p className="text-gray-600 mb-4">{product.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-blue-600 font-semibold">
-                        {product.price} TL
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {product.category}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+    <div className="min-h-screen pb-16">
+      {/* Hero Section */}
+      <section className="relative h-[60vh]">
+        <Image
+          src="/urunler-hero.jpg"
+          alt="Ürünlerimiz"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-black bg-opacity-50">
+          <div className="container mx-auto px-4 h-full flex items-center">
+            <div className="max-w-2xl">
+              <h1 className="text-4xl md:text-6xl font-bold mb-4 text-black">
+                Ürünlerimiz
+              </h1>
+              <p className="text-lg md:text-xl mb-8 text-black">
+                Yüksek kaliteli un ve un ürünleri
+              </p>
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Daha Fazla Yükle Butonu */}
-          {hasMore && !loading && (
-            <div className="mt-8 text-center">
-              <button
-                onClick={loadMore}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Daha Fazla Yükle
-              </button>
+      {/* Ürünler Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-12">Ürünlerimiz</h2>
+
+          {/* Hata Mesajı */}
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
             </div>
           )}
 
           {/* Yükleme Göstergesi */}
-          {loading && products.length > 0 && (
-            <div className="mt-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : products.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {products.map((product) => (
+                  <motion.div
+                    key={product._id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="bg-white rounded-lg shadow-lg overflow-hidden"
+                  >
+                    <div className="relative aspect-square">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
+                      <p className="text-gray-600 mb-4">{product.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-600 font-semibold">
+                          {product.price} TL
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {product.category}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-8">
+              Henüz ürün eklenmemiş.
             </div>
           )}
-        </>
-      )}
+        </div>
+      </section>
     </div>
   );
 } 
