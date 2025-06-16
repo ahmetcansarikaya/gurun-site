@@ -122,4 +122,52 @@ export async function DELETE(request) {
       }
     }
   }
+}
+
+// PUT - Bilgi güncelle
+export async function PUT(request) {
+  let db;
+  try {
+    const { id, title, content, category } = await request.json();
+
+    if (!id || !title || !content) {
+      return NextResponse.json(
+        { error: 'ID, başlık ve içerik zorunludur' },
+        { status: 400 }
+      );
+    }
+
+    db = await getDb();
+
+    // Bilgiyi güncelle
+    const result = await db.run(
+      'UPDATE knowledge SET title = ?, content = ?, category = ? WHERE id = ?',
+      [title, content, category || 'urunler', id]
+    );
+
+    if (result.changes === 0) {
+      return NextResponse.json(
+        { error: 'Bilgi bulunamadı' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Bilgi başarıyla güncellendi'
+    });
+  } catch (error) {
+    console.error('Bilgi güncellenirken hata:', error);
+    return NextResponse.json(
+      { error: 'Bilgi güncellenirken bir hata oluştu: ' + error.message },
+      { status: 500 }
+    );
+  } finally {
+    if (db) {
+      try {
+        await db.close();
+      } catch (closeError) {
+        console.error('Veritabanı kapatılırken hata:', closeError);
+      }
+    }
+  }
 } 
