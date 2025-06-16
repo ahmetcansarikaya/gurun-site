@@ -19,6 +19,7 @@ async function createTable() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       content TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'urunler',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -47,7 +48,7 @@ export async function POST(request) {
     const db = await getDb();
     await createTable();
 
-    const { title, content } = await request.json();
+    const { title, content, category } = await request.json();
 
     if (!title || !content) {
       return NextResponse.json(
@@ -57,8 +58,8 @@ export async function POST(request) {
     }
 
     const result = await db.run(
-      'INSERT INTO knowledge (title, content) VALUES (?, ?)',
-      [title, content]
+      'INSERT INTO knowledge (title, content, category) VALUES (?, ?, ?)',
+      [title, content, category || 'urunler']
     );
 
     return NextResponse.json({

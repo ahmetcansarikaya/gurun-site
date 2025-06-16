@@ -87,8 +87,12 @@ export default function AdminKnowledgeBase() {
     }
 
     try {
+      setError(null);
       const response = await fetch(`/api/knowledge?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       const data = await response.json();
@@ -97,10 +101,11 @@ export default function AdminKnowledgeBase() {
         throw new Error(data.error || 'Bilgi silinirken bir hata oluştu');
       }
 
-      fetchItems(); // Listeyi yenile
+      // Başarılı silme işlemi sonrası listeyi güncelle
+      await fetchItems();
     } catch (error) {
       console.error('Error deleting item:', error);
-      setError(error.message);
+      setError(error.message || 'Bilgi silinirken bir hata oluştu');
     }
   };
 

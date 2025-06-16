@@ -98,15 +98,21 @@ export default function AdminKnowledge() {
     }
 
     try {
-      const response = await fetch(`/api/knowledge/${id}`, {
+      setError(null);
+      const response = await fetch(`/api/knowledge?id=${id}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Bilgi silinirken bir hata oluştu');
+        throw new Error(data.error || 'Bilgi silinirken bir hata oluştu');
       }
 
-      fetchArticles();
+      await fetchArticles();
     } catch (err) {
       console.error('Error deleting article:', err);
       setError(err.message);

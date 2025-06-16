@@ -8,6 +8,8 @@ import { IoArrowBack } from 'react-icons/io5';
 export default function UrunlerYonetimi() {
   const [products, setProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -129,6 +131,46 @@ export default function UrunlerYonetimi() {
     }
   };
 
+  const handleEdit = (product) => {
+    setSelectedProduct(product);
+    setFormData({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      image: null
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.price || !formData.category) {
+      setError('Lütfen tüm alanları doldurun');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/products?id=${selectedProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Ürün güncellenirken bir hata oluştu');
+      }
+
+      setShowEditModal(false);
+      fetchProducts();
+    } catch (err) {
+      console.error('Error updating product:', err);
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-6">
@@ -191,7 +233,7 @@ export default function UrunlerYonetimi() {
               <p className="text-sm text-black mb-4">Kategori: {product.category}</p>
               <div className="flex justify-end space-x-2">
                 <button
-                  onClick={() => router.push(`/admin/urunler/${product.id}`)}
+                  onClick={() => handleEdit(product)}
                   className="bg-yellow-500 text-black px-3 py-1 rounded hover:bg-yellow-600"
                 >
                   Düzenle
@@ -279,6 +321,73 @@ export default function UrunlerYonetimi() {
                   className="bg-blue-500 text-black px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300"
                 >
                   {uploading ? 'Yükleniyor...' : 'Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-xl font-bold text-black mb-4">Ürün Düzenle</h2>
+            <form onSubmit={handleUpdate}>
+              <div className="mb-4">
+                <label className="block text-black mb-2">Ürün Adı</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-black mb-2">Açıklama</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  rows="3"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-black mb-2">Fiyat</label>
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-black mb-2">Kategori</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                >
+                  <option value="un">Un</option>
+                  <option value="makarna">Makarna</option>
+                  <option value="bisküvi">Bisküvi</option>
+                </select>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="bg-gray-500 text-black px-4 py-2 rounded hover:bg-gray-600"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-500 text-black px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Güncelle
                 </button>
               </div>
             </form>

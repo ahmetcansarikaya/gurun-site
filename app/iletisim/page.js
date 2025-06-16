@@ -114,7 +114,7 @@ export default function ContactPage() {
 
             {/* İletişim Formu */}
             <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-semibold mb-6">Bize Ulaşın</h2>
+              <h2 className="text-2xl font-semibold mb-6 text-black">Bize Ulaşın</h2>
 
               {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
