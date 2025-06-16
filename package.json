@@ -1,0 +1,39 @@
+{
+  "name": "gurun-site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "glitch-start": "next build && next start",
+    "lint": "next lint",
+    "migrate": "node scripts/migrate.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "cloudinary": "^2.6.1",
+    "framer-motion": "^11.0.8",
+    "js-cookie": "^3.0.5",
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.15.1",
+    "next": "14.2.29",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.0.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.0.0",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "autoprefixer": "^10.4.18",
+    "eslint-config-next": "14.2.29",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3"
+  }
+}

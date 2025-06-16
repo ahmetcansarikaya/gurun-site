@@ -1,0 +1,94 @@
+import { NextResponse } from 'next/server';
+import { openDb } from '@/lib/db';
+
+// PUT: Bilgiyi güncelle
+export async function PUT(request, { params }) {
+  let db;
+  try {
+    const { id } = params;
+    const { title, content, category } = await request.json();
+    
+    if (!title || !content || !category) {
+      return NextResponse.json(
+        { error: 'Başlık, içerik ve kategori alanları zorunludur' },
+        { status: 400 }
+      );
+    }
+    
+    db = await openDb();
+    
+    // Bilgiyi güncelle
+    const result = await db.run(
+      'UPDATE knowledge_articles SET title = ?, content = ?, category = ? WHERE id = ?',
+      [title, content, category, id]
+    );
+    
+    if (result.changes === 0) {
+      return NextResponse.json(
+        { error: 'Bilgi bulunamadı' },
+        { status: 404 }
+      );
+    }
+    
+    // Güncellenmiş bilgiyi getir
+    const updatedArticle = await db.get(
+      'SELECT * FROM knowledge_articles WHERE id = ?',
+      [id]
+    );
+    
+    return NextResponse.json(updatedArticle);
+  } catch (error) {
+    console.error('Error updating knowledge article:', error);
+    return NextResponse.json(
+      { error: 'Bilgi güncellenirken bir hata oluştu' },
+      { status: 500 }
+    );
+  } finally {
+    if (db) {
+      try {
+        await db.close();
+      } catch (closeError) {
+        console.error('Veritabanı kapatılırken hata:', closeError);
+      }
+    }
+  }
+}
+
+// DELETE: Bilgiyi sil
+export async function DELETE(request, { params }) {
+  let db;
+  try {
+    const { id } = params;
+    
+    db = await openDb();
+    
+    // Bilgiyi sil
+    const result = await db.run(
+      'DELETE FROM knowledge_articles WHERE id = ?',
+      [id]
+    );
+    
+    if (result.changes === 0) {
+      return NextResponse.json(
+        { error: 'Bilgi bulunamadı' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({ message: 'Bilgi başarıyla silindi' });
+  } catch (error) {
+    console.error('Error deleting knowledge article:', error);
+    return NextResponse.json(
+      { error: 'Bilgi silinirken bir hata oluştu' },
+      { status: 500 }
+    );
+  } finally {
+    if (db) {
+      try {
+        await db.close();
+      } catch (closeError) {
+        console.error('Veritabanı kapatılırken hata:', closeError);
+      }
+    }
+  }
+} 
